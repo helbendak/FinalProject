@@ -18,5 +18,13 @@
         </library>
       </libraries>
     </data-source>
+    <data-source source="LOCAL" name="postgreSQL" uuid="3a34b8ab-1648-4a1f-8379-a0aabdfb9958">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <imported>true</imported>
+      <remarks>$PROJECT_DIR$/djangoApp/finalProject/settings.py</remarks>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://localhost:5432/finalproject_db</jdbc-url>
+    </data-source>
   </component>
 </project>
