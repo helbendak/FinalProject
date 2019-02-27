@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GEO Search</title>
+</head>
+<body>
+    <!--<form method="POST" action="/search">-->
+        <!--{% csrf_token %}-->
+        <!--<input type="text" name="textfield">-->
+
+        <!--<button type="submit">Please enter the GEO Accession Code</button>-->
+    <!--</form>-->
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <h3>Enter GEO Accession Code</h3>
+        <input type="text" name="textfield">
+        </br>
+        <h3>Upload RPKM File</h3>
+        <input type="file" name="document">
+        </br>
+        </br>
+        <button type="submit">SUBMIT</button>
+    </form>
+</body>
+</html>

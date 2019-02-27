@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Match Terms</title>
+</head>
+<body>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <ul>
+            {% for term in term_list %}
+                 <li>{{ term }}</li>
+                <select id="the-id" name="existing_terms">
+                    {% for existing in all_terms %}
+                        <option value="{{ existing }}">{{ existing }}</option>
+                    {% endfor %}
+                </select>
+            {% endfor %}
+        </ul>
+        <button type="submit">SUBMIT</button>
+    </form>
+</body>
+</html>

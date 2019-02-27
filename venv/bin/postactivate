@@ -1,0 +1,3 @@
+export DATABASE_NAME='finalproject_db'
+export DATABASE_USER='Bendak'
+export DATABASE_PASSWORD='admin'

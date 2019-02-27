@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Match Features</title>
+</head>
+<body>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <ul>
+            {% for feature in features %}
+                <li>{{ feature }}</li>
+                <select id="the-id" name="existing_features_match">
+                    {% for existing in existing_features %}
+                        <option value="{{ existing }}">{{ existing }}</option>
+                    {% endfor %}
+                </select>
+            {% endfor %}
+        </ul>
+        <button type="submit">SUBMIT</button>
+    </form>
+</body>
+</html>
