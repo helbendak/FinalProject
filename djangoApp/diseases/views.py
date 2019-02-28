@@ -1,5 +1,4 @@
-from django.shortcuts import render, render_to_response, redirect
-from django.shortcuts import HttpResponse, HttpResponseRedirect
+from django.shortcuts import render, redirect
 import rpy2.robjects.packages as rpackages
 from rpy2.robjects.vectors import StrVector, FactorVector
 from rpy2.robjects import r
@@ -7,7 +6,7 @@ from django.core.files.storage import FileSystemStorage
 import os
 from .models import Sample, AttributeName, AttributeValue, AttributeTerm
 import re
-from django.template import loader
+import ast
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -72,6 +71,7 @@ def search(request):
             attribute_values = []
             for attribute in geo_attributeValue:
                 attribute_values.append(attribute)
+            attribute_values = [a.lower() for a in attribute_values]
             attribute_values = set(attribute_values)
             attribute_values = list(attribute_values)
             request.session[feature.lower()] = attribute_values
@@ -121,7 +121,8 @@ def search(request):
 def matchFeatures(request):
     if request.method == 'POST':
         existing_features = request.POST.getlist('existing_features_match')
-        new_features = request.session['features1']
+        new_features = request.POST.getlist('features')[0]
+        new_features = ast.literal_eval(new_features)
         for i, f in enumerate(existing_features):
             if f == "none":
                 attributeName = AttributeName(canonical_name=new_features[i], synonyms=[])
@@ -148,6 +149,7 @@ def matchFeatures(request):
                     features.append(feature)
 
         if not features:
+            # If all features get filtered here, move on to next screen
             return redirect('/matchTerms/')
         else:
             context = {'features': features, 'existing_features': AttributeName.objects.all()}
@@ -156,19 +158,45 @@ def matchFeatures(request):
 
 def matchTerms(request):
     if request.method == 'POST':
-        existing_terms = request.POST.getlist('existing_terms')
+        existing_terms = request.POST.getlist('existing_terms_match')
+        new_terms = request.POST.getlist('term_list')[0]  # TODO: Fix other function's HTML
+        new_terms = ast.literal_eval(new_terms)  # POST gets this as a string, need to evaluate it into a list
+        for i, t in enumerate(existing_terms):
+            name, term = new_terms[i].split(' : ')
+            if t == "none":
+                try:
+                    attributeName = AttributeName.objects.get(canonical_name=name)
+                except AttributeName.DoesNotExist:
+                    attributeName = AttributeName.objects.filter(synonyms__contains=[name])[0]
+                attributeTerm = AttributeTerm.objects.create(
+                    canonical_term=term, synonyms=[], attribute_name=attributeName)
+            else:
+                try:
+                    attributeName = AttributeName.objects.get(canonical_name=name)
+                except AttributeName.DoesNotExist:
+                    attributeName = AttributeName.objects.filter(synonyms__contains=[name])[0]
+                attributeTerm = AttributeTerm.objects.get(canonical_term=t, attribute_name=attributeName)
+                attributeTerm.synonyms.append(term)
+                attributeTerm.save()
+        return redirect('/search/')
 
     else:
         new_features = request.session['features1']
-        context = {}
         term_list = []
         for feature in new_features:
-            # context[feature] = request.session[feature]
             terms = request.session[feature]
             for term in terms:
-                term_list.append(feature + " : " + term)
-        all_terms = AttributeTerm.objects.all()
-        context['term_list'] = term_list
-        context['all_terms'] = all_terms
-        # print(context)
-        return render(request, 'matchTerms.html', context)
+                try:
+                    # Check in canonical names
+                    AttributeTerm.objects.get(canonical_term=term)
+                except (AttributeTerm.DoesNotExist, AttributeTerm.MultipleObjectsReturned) as error:
+                    # Check in synonyms
+                    synonyms_exist = AttributeTerm.objects.filter(synonyms__contains=[term])
+                    if not synonyms_exist:
+                        term_list.append(feature + " : " + term)
+
+        if not term_list:
+            return redirect('/search/')
+        else:
+            context = {'term_list': term_list, 'all_terms': AttributeTerm.objects.all()}
+            return render(request, 'matchTerms.html', context)
