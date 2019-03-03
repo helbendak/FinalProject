@@ -50,6 +50,8 @@ class matchTermsTestCase(TestCase):
         AttributeTerm.objects.create(canonical_term='male', synonyms=['man'], attribute_name=gender)
         AttributeTerm.objects.create(canonical_term='female', synonyms=[], attribute_name=gender)
         AttributeTerm.objects.create(canonical_term='deep', synonyms=[], attribute_name=ulcer)
+        AttributeTerm.objects.create(canonical_term='na', synonyms=[], attribute_name=gender)
+        AttributeTerm.objects.create(canonical_term='na', synonyms=[], attribute_name=ulcer)
         AttributeTerm.objects.create(canonical_term='none', synonyms=[], attribute_name=none)
         self.client = Client()
 
@@ -70,20 +72,22 @@ class matchTermsTestCase(TestCase):
 
     def test_matchTerms_get(self):
         session = self.client.session
-        session['features1'] = ['gender', 'deep ulcer']
+        session['features1'] = ['gender', 'deep ulcer', 'anything_feature']
         session['gender'] = ['man', 'female']
         session['deep ulcer'] = ['deep', 'not deep']
+        session['anything_feature'] = ['na']
         session.save()
         response = self.client.get('/matchTerms/')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['term_list'], ['deep ulcer : not deep'])
+        self.assertEqual(response.context['term_list'], ['deep ulcer : not deep', 'anything_feature : na'])
         self.assertEqual(response.context['all_terms'][0], AttributeTerm.objects.all()[0])
 
     def test_matchTerms_get_redirect(self):
         session = self.client.session
-        session['features1'] = ['gender', 'deep ulcer']
+        session['features1'] = ['gender', 'deep ulcer', 'sex']
         session['gender'] = ['man', 'female']
-        session['deep ulcer'] = ['deep']
+        session['deep ulcer'] = ['deep', 'na']
+        session['sex'] = ['na']
         session.save()
         response = self.client.get('/matchTerms/')
         self.assertEqual(response.status_code, 302)

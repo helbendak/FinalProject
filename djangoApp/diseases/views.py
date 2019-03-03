@@ -14,7 +14,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Create your views here.
 def search(request):
     if request.method == 'POST':
-        search_id = request.POST.get('textfield', None)
+
+        # Install R libraries
         packageNames = ('GEOquery', 'Biobase')
         utils = rpackages.importr('utils')
         utils.chooseCRANmirror(ind=1)
@@ -24,11 +25,15 @@ def search(request):
         GEOquery = rpackages.importr('GEOquery')
         Biobase = rpackages.importr('Biobase')
 
+        # Extract POST data from HTML
+        search_id = request.POST.get('textfield', None)
         uploaded_file = request.FILES['document']
+
         fs = FileSystemStorage()
         fs.save(search_id+"_RPKM", uploaded_file)
         with open(os.path.join(BASE_DIR, "media/"+search_id+"_RPKM")) as f:
             rpkmFile_sampleIDs = f.readline().split()
+        # TODO: Delete file after finishing?
         # TODO: Remove first 4 words: the column/row headers 'Gene ID Gene Symbol' -- should probably do this using
         #  the replace function to make it clear what we're replacing
         rpkmFile_sampleIDs = rpkmFile_sampleIDs[4:]
@@ -50,12 +55,20 @@ def search(request):
 
         geo_sampleIDs = Biobase.pData(eList[0])[ids_idx]
 
-        # Map gene IDs in RPKM file to GEO Accession codes in GEO
-        geo_GSM = Biobase.pData(eList[0])[1]
+        # Map sample IDs in RPKM file to GSM codes in GEO
+        geo_GSM_list = Biobase.pData(eList[0])[1]  # GSM Codes always stored in column 1
 
         sampleIDs_to_geoGSM = {}
         for i in range(len(geo_sampleIDs)):
-            sampleIDs_to_geoGSM[str(geo_sampleIDs.levels[geo_sampleIDs[i]-1])] = str(geo_GSM[i])
+            sample_id = str(geo_sampleIDs.levels[geo_sampleIDs[i]-1])
+            sample_gsm = str(geo_GSM_list[i])
+            sampleIDs_to_geoGSM[sample_id] = sample_gsm
+
+        # Create sample objects in database
+        for sample_id in rpkmFile_sampleIDs:
+            sample_id = sample_id
+            sample_gsm = sampleIDs_to_geoGSM[sample_id]
+            Sample.objects.get_or_create(sample_id=sample_id, sample_gsm=sample_gsm)
 
         # Find which features we will be extracting from GEO
         geo_all_features = r.names(Biobase.pData(eList[0]))
@@ -64,7 +77,7 @@ def search(request):
             all_features_list.append(feature_name)
         ch1_regex = re.compile(":ch1$")
         features_temp = [item for i, item in enumerate(all_features_list) if re.search(ch1_regex, item)]
-        features = [x.replace(':ch1', '') for x in features_temp]  # TODO: Make lowercase?
+        features = [x.replace(':ch1', '') for x in features_temp]
 
         for feature in features:
             geo_attributeValue = geo_all_list[all_features_list.index(feature+":ch1")]
@@ -76,39 +89,17 @@ def search(request):
             attribute_values = list(attribute_values)
             request.session[feature.lower()] = attribute_values
 
-        # Create SampleAttributes
-        # for feature in features:
-        #     sampleAttribute, created = SampleAttribute.objects.get_or_create(name=feature)
-        #     # sampleAttribute = SampleAttribute(name=feature)
-        #     if created:
-        #         sampleAttribute.save()
-
-        # # TODO:Find attribute values for each feature
-        # geneID_to_attributeValue = {}
-        # geo_attributeValue = Biobase.pData(eList[0])[-8]
-        # for i in range(len(geo_sampleIDs)):
-        #     geneID_to_attributeValue[str(geo_sampleIDs.levels[geo_sampleIDs[i] - 1])] = str(geo_attributeValue[i]).lower()
-        #
-        # attribute_values = []
-        # for i in range(len(geo_sampleIDs)):
-        #     attribute_values.append(geo_attributeValue[i])
-        #     attribute_values = [x.lower() for x in attribute_values]
-        # attribute_values = set(attribute_values)
-        #
-        # # Create SampleAttributeValues
-        # for attVal in attribute_values:
-        #     attributeValue = AttributeValue(value=attVal, attribute=sampleAttribute)
-        #     attributeValue.save()
-        #
-        # # Create Sample entries in database
-        # for geneID in rpkmFile_sampleIDs:
-        #     geoAccs = sampleIDs_to_geoGSM[geneID]
-        #     sample = Sample(geoAccs=geoAccs, geneID=geneID)
-        #     sample.save()
-        #     #sample.sampleAttribute.add(sampleAttribute)
-        #     attVal = geneID_to_attributeValue[geneID]
-        #     attributeValue = AttributeValue.objects.get(value=attVal)
-        #     sample.sampleAttributeValue.add(attributeValue)
+        for feature in features:
+            geo_attributeValue = geo_all_list[all_features_list.index(feature + ":ch1")]
+            attribute_values = []
+            for attribute in geo_attributeValue:
+                attribute_values.append(attribute.lower())
+            for sample_id in rpkmFile_sampleIDs:
+                geo_gsm = sampleIDs_to_geoGSM[sample_id]
+                sample_idx = geo_GSM_list.index(geo_gsm)
+                attribute_mapping = attribute_values[sample_idx]
+                sample = Sample.objects.get(sample_id=sample_id)
+                AttributeValue.objects.create(name=feature.lower(), value=attribute_mapping, sample=sample)
 
         features = [x.lower() for x in features]
         request.session['features1'] = features
@@ -178,7 +169,7 @@ def matchTerms(request):
                 attributeTerm = AttributeTerm.objects.get(canonical_term=t, attribute_name=attributeName)
                 attributeTerm.synonyms.append(term)
                 attributeTerm.save()
-        return redirect('/search/')
+        return redirect('/syncValues/')
 
     else:
         new_features = request.session['features1']
@@ -189,14 +180,35 @@ def matchTerms(request):
                 try:
                     # Check in canonical names
                     AttributeTerm.objects.get(canonical_term=term)
-                except (AttributeTerm.DoesNotExist, AttributeTerm.MultipleObjectsReturned) as error:
+                except AttributeTerm.DoesNotExist:
                     # Check in synonyms
                     synonyms_exist = AttributeTerm.objects.filter(synonyms__contains=[term])
                     if not synonyms_exist:
                         term_list.append(feature + " : " + term)
+                except AttributeTerm.MultipleObjectsReturned:
+                    # Check if AttributeName matches
+                    try:
+                        attributeName = AttributeName.objects.get(canonical_name=feature)
+                    except AttributeName.DoesNotExist:
+                        attributeName = AttributeName.objects.filter(synonyms__contains=[feature])
+                        if not attributeName:
+                            term_list.append(feature + " : " + term)
 
         if not term_list:
-            return redirect('/search/')
+            return redirect('/syncValues/')
         else:
             context = {'term_list': term_list, 'all_terms': AttributeTerm.objects.all()}
             return render(request, 'matchTerms.html', context)
+
+
+def syncValues(request):
+    all_values = AttributeValue.objects.all()
+    for attValue in all_values:
+        name = attValue.name
+        try:
+            attName = AttributeName.objects.get(canonical_name=name)
+        except AttributeName.DoesNotExist:
+            attName = AttributeName.objects.filter(synonyms__contains=[name])[0]
+        attValue.attribute_name = attName
+        attValue.save()
+    return redirect('/search/')

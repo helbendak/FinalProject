@@ -48,21 +48,21 @@ class AttributeTerm(models.Model):
         return self.canonical_term
 
 
+class Sample(models.Model):
+    id = models.AutoField(primary_key=True)
+    sample_gsm = models.CharField(max_length=30)
+    sample_id = models.CharField(max_length=30)
+
+    def __str__(self):
+        return self.sample_id
+
+
 class AttributeValue(models.Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=50)
     value = models.CharField(max_length=50)
+    sample = models.ForeignKey(Sample, on_delete=models.CASCADE)
+    attribute_name = models.ForeignKey(AttributeName, on_delete=models.CASCADE, blank=True, null=True)
 
     def __str__(self):
         return self.value
-
-
-class Sample(models.Model):
-    sample_id = models.AutoField(primary_key=True)
-    geoAccs = models.CharField(max_length=30)
-    geneID = models.CharField(max_length=30)
-
-    def __str__(self):
-        return self.geneID
-
-
