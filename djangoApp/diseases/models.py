@@ -50,8 +50,10 @@ class AttributeTerm(models.Model):
 
 class Sample(models.Model):
     id = models.AutoField(primary_key=True)
+    gse_id = models.CharField(max_length=15)
     sample_gsm = models.CharField(max_length=30)
     sample_id = models.CharField(max_length=30)
+    count = ArrayField(models.FloatField())
 
     def __str__(self):
         return self.sample_id
@@ -66,3 +68,11 @@ class AttributeValue(models.Model):
 
     def __str__(self):
         return self.value
+
+
+class Gene(models.Model):
+    position = models.IntegerField(primary_key=True)
+    geneId = models.CharField(max_length=50)
+
+    def __str__(self):
+        return self.geneId

@@ -17,9 +17,5 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.index, name='index'),
-    path('search/', views.search, name='search'),
-    path('matchFeatures/', views.matchFeatures, name='matchFeatures'),
-    path('matchTerms/', views.matchTerms, name='matchTerms'),
-    path('syncValues/', views.syncValues, name='syncValues'),
+    path('plotpca/', views.plotPCA, name='plotpca'),
 ]

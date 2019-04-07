@@ -1,0 +1,23 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% block title %}
+    <title>Home</title>
+    {% endblock title %}
+    <link href="{% static 'main.css' %}" rel="stylesheet" type="text/css">
+</head>
+<body>
+<div id="wrapper">
+    <header id="header">
+{#        <div id="logo"><img src="{% static 'logo.jpeg' %}" alt=""/></div>#}
+        <div id="topbanner"><img src="{% static 'top_banner.png' %}" width="800" height="150" alt=""></div>
+    </header>
+    {% block content %}
+    <body> Please go here to upload your data </body>
+    {% endblock content %}
+    <footer id="footer">This website is submitted as part requirement for the MEng Mathematical Computation at UCL.</footer>
+</div>
+</body>
+</html>

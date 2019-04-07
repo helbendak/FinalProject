@@ -1,27 +1,27 @@
+{% extends "base.html" %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    {% block title %}
     <title>GEO Search</title>
+    {% endblock title %}
 </head>
+
 <body>
-    <!--<form method="POST" action="/search">-->
-        <!--{% csrf_token %}-->
-        <!--<input type="text" name="textfield">-->
-
-        <!--<button type="submit">Please enter the GEO Accession Code</button>-->
-    <!--</form>-->
-
+{% block content %}
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <h3>Enter GEO Accession Code</h3>
         <input type="text" name="textfield">
         </br>
-        <h3>Upload RPKM File</h3>
+        <h3>Upload Gene Count File</h3>
         <input type="file" name="document">
         </br>
         </br>
-        <button type="submit">SUBMIT</button>
+        <button type="submit">Submit</button>
     </form>
+{% endblock content %}
 </body>
+
 </html>

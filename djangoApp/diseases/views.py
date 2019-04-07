@@ -4,14 +4,19 @@ from rpy2.robjects.vectors import StrVector, FactorVector
 from rpy2.robjects import r
 from django.core.files.storage import FileSystemStorage
 import os
-from .models import Sample, AttributeName, AttributeValue, AttributeTerm
+from .models import Sample, AttributeName, AttributeValue, AttributeTerm, Gene
 import re
 import ast
+import csv
+import pandas as pd
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-# Create your views here.
+def index(request):
+    return render(request, 'base.html')
+
+
 def search(request):
     if request.method == 'POST':
 
@@ -29,14 +34,27 @@ def search(request):
         search_id = request.POST.get('textfield', None)
         uploaded_file = request.FILES['document']
 
+        # Get gene counts for each sample
+        allCounts = []
+        df = pd.read_csv(uploaded_file)
+        df = df.T
+        df = df.iloc[1:, :].values
+        for row in df:
+            allCounts.append(list(row))
+
+        # Extract Genes and Sample IDs from count file
         fs = FileSystemStorage()
         fs.save(search_id+"_RPKM", uploaded_file)
-        with open(os.path.join(BASE_DIR, "media/"+search_id+"_RPKM")) as f:
-            rpkmFile_sampleIDs = f.readline().split()
-        # TODO: Delete file after finishing?
-        # TODO: Remove first 4 words: the column/row headers 'Gene ID Gene Symbol' -- should probably do this using
-        #  the replace function to make it clear what we're replacing
-        rpkmFile_sampleIDs = rpkmFile_sampleIDs[4:]
+        with open(os.path.join(BASE_DIR, "media/"+search_id+"_RPKM")) as csvDataFile:
+            csvReader = csv.reader(csvDataFile)
+            for idx, row in enumerate(csvReader):
+                if idx == 0:
+                    rpkmFile_sampleIDs = row[1:]
+                else:
+                    # TODO: Should be indexing the genes per experiment
+                    Gene.objects.get_or_create(position=idx, geneId=row[0])
+        # request.session['countFile'] = "media/"+search_id+"_RPKM"
+        request.session['gse'] = search_id
 
         # Find which column in GEO corresponds to the sample IDs in the RPKM file
         eList = GEOquery.getGEO(search_id)  # GSE57945
@@ -57,18 +75,20 @@ def search(request):
 
         # Map sample IDs in RPKM file to GSM codes in GEO
         geo_GSM_list = Biobase.pData(eList[0])[1]  # GSM Codes always stored in column 1
-
         sampleIDs_to_geoGSM = {}
         for i in range(len(geo_sampleIDs)):
-            sample_id = str(geo_sampleIDs.levels[geo_sampleIDs[i]-1])
+            if type(geo_sampleIDs) == FactorVector:
+                sample_id = str(geo_sampleIDs.levels[geo_sampleIDs[i]-1])
+            else:
+                sample_id = geo_sampleIDs[i]
             sample_gsm = str(geo_GSM_list[i])
             sampleIDs_to_geoGSM[sample_id] = sample_gsm
 
         # Create sample objects in database
-        for sample_id in rpkmFile_sampleIDs:
+        for idx, sample_id in enumerate(rpkmFile_sampleIDs):
             sample_id = sample_id
             sample_gsm = sampleIDs_to_geoGSM[sample_id]
-            Sample.objects.get_or_create(sample_id=sample_id, sample_gsm=sample_gsm)
+            Sample.objects.get_or_create(gse_id=search_id, sample_id=sample_id, sample_gsm=sample_gsm, count=allCounts[idx])
 
         # Find which features we will be extracting from GEO
         geo_all_features = r.names(Biobase.pData(eList[0]))
@@ -79,6 +99,7 @@ def search(request):
         features_temp = [item for i, item in enumerate(all_features_list) if re.search(ch1_regex, item)]
         features = [x.replace(':ch1', '') for x in features_temp]
 
+        # Extract attribute values for each attribute for each sample & create corresponding objects in DB
         for feature in features:
             geo_attributeValue = geo_all_list[all_features_list.index(feature+":ch1")]
             attribute_values = []
@@ -88,18 +109,12 @@ def search(request):
             attribute_values = set(attribute_values)
             attribute_values = list(attribute_values)
             request.session[feature.lower()] = attribute_values
-
-        for feature in features:
-            geo_attributeValue = geo_all_list[all_features_list.index(feature + ":ch1")]
-            attribute_values = []
-            for attribute in geo_attributeValue:
-                attribute_values.append(attribute.lower())
             for sample_id in rpkmFile_sampleIDs:
                 geo_gsm = sampleIDs_to_geoGSM[sample_id]
                 sample_idx = geo_GSM_list.index(geo_gsm)
-                attribute_mapping = attribute_values[sample_idx]
+                attribute_mapping = geo_attributeValue[sample_idx].lower()
                 sample = Sample.objects.get(sample_id=sample_id)
-                AttributeValue.objects.create(name=feature.lower(), value=attribute_mapping, sample=sample)
+                AttributeValue.objects.get_or_create(name=feature.lower(), value=attribute_mapping, sample=sample)
 
         features = [x.lower() for x in features]
         request.session['features1'] = features
@@ -150,8 +165,8 @@ def matchFeatures(request):
 def matchTerms(request):
     if request.method == 'POST':
         existing_terms = request.POST.getlist('existing_terms_match')
-        new_terms = request.POST.getlist('term_list')[0]  # TODO: Fix other function's HTML
-        new_terms = ast.literal_eval(new_terms)  # POST gets this as a string, need to evaluate it into a list
+        new_terms = request.POST.getlist('term_list')[0]
+        new_terms = ast.literal_eval(new_terms)  # POST gets this as a string, need to convert it to a list
         for i, t in enumerate(existing_terms):
             name, term = new_terms[i].split(' : ')
             if t == "none":
@@ -211,4 +226,4 @@ def syncValues(request):
             attName = AttributeName.objects.filter(synonyms__contains=[name])[0]
         attValue.attribute_name = attName
         attValue.save()
-    return redirect('/search/')
+    return redirect('/plotpca/')
