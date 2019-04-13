@@ -1,4 +1,3 @@
-# Create your models here.
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 
@@ -71,8 +70,10 @@ class AttributeValue(models.Model):
 
 
 class Gene(models.Model):
-    position = models.IntegerField(primary_key=True)
-    geneId = models.CharField(max_length=50)
+    id = models.AutoField(primary_key=True)
+    gene_name = models.CharField(max_length=50)
+    gse_id = models.CharField(max_length=15)
+    position = models.IntegerField()
 
     def __str__(self):
-        return self.geneId
+        return self.gene_name

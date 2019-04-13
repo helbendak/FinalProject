@@ -51,8 +51,7 @@ def search(request):
                 if idx == 0:
                     rpkmFile_sampleIDs = row[1:]
                 else:
-                    # TODO: Should be indexing the genes per experiment
-                    Gene.objects.get_or_create(position=idx, geneId=row[0])
+                    Gene.objects.get_or_create(gene_name=row[0], gse_id=search_id, position=idx-1)
         # request.session['countFile'] = "media/"+search_id+"_RPKM"
         request.session['gse'] = search_id
 

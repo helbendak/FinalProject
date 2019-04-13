@@ -15,7 +15,23 @@
                 <option value="{{ feature }}">{{ feature }}</option>
             {% endfor %}
         </select>
-        <button type="submit">Show</button>
+        <button type="submit" name="show">Show</button>
+        <h3>Choose PC to split on</h3>
+        <select name="pc">
+            <option value="principal component 1">Principal Component 1</option>
+            <option value="principal component 2">Principal Component 2</option>
+        </select>
+        <br>
+        <h3>Enter threshold value</h3>
+        <input type="text" name="threshold">
+        <h3>Choose the values to obtain subtypes from</h3>
+        <select id="the-id" name="selected_value">
+            {% for term in terms %}
+                <option value="{{ term }}-{{ term.attribute_name }}">{{ term.attribute_name }} - {{ term }} </option>
+            {% endfor %}
+        </select>
+        <br>
+        <button type="submit" name="submit">Submit</button>
     </form>
     {% endblock content %}
 </body>
