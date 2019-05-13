@@ -1,2 +1,2 @@
 #!/bin/bash
-coverage run --source=. manage.py test -v 2 && coverage html && coverage report
+coverage run --source=. --omit=diseases/__init__.py,diseases/admin.py,diseases/apps.py,finalProject/*,manage.py,pca/__init__.py,pca/admin.py,pca/apps.py,supervisedLearning/__init__.py,supervisedLearning/admin.py,supervisedLearning/apps.py manage.py test -v 2 && coverage html && coverage report

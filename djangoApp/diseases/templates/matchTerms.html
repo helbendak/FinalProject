@@ -1,24 +1,29 @@
+{% extends "base.html" %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    {% block title %}
     <title>Match Terms</title>
+    {% endblock title %}
 </head>
 <body>
+{% block content %}
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="term_list" value="{{ term_list }}">
         <ul>
             {% for term in term_list %}
                  <li>{{ term }}</li>
-                <select id="the-id" name="existing_terms_match">
+                <select id="existing_terms" name="existing_terms_match">
                     {% for existing_term in all_terms %}
                         <option value="{{ existing_term }}">{{ existing_term }} : {{ existing_term.attribute_name }}</option>
                     {% endfor %}
                 </select>
             {% endfor %}
         </ul>
-        <button type="submit">SUBMIT</button>
+        <button id="submit" type="submit">SUBMIT</button>
     </form>
+{% endblock content %}
 </body>
 </html>

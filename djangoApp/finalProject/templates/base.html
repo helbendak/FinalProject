@@ -11,11 +11,16 @@
 <body>
 <div id="wrapper">
     <header id="header">
-{#        <div id="logo"><img src="{% static 'logo.jpeg' %}" alt=""/></div>#}
         <div id="topbanner"><img src="{% static 'top_banner.png' %}" width="800" height="150" alt=""></div>
     </header>
     {% block content %}
-    <body> Please go here to upload your data </body>
+    <body>
+        Please go here to upload your data <a href="{% url 'search' %}">Upload</a>
+        <br><br><br>
+        Look at PCA and train model <a href="{% url 'plotpca' %}">PCA</a>
+        <br><br><br>
+        Test Model <a href="{% url 'supervisedTest' %}">Test</a>
+    </body>
     {% endblock content %}
     <footer id="footer">This website is submitted as part requirement for the MEng Mathematical Computation at UCL.</footer>
 </div>

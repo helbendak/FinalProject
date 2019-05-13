@@ -1,10 +1,19 @@
-from django.test import TestCase, Client, RequestFactory
-from .models import AttributeName, AttributeTerm
+from django.test import TestCase, Client, RequestFactory, LiveServerTestCase
+from .models import AttributeName, AttributeTerm, AttributeValue, Sample, Experiment, Disease
+import mock
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+import os
+from rpy2.robjects.vectors import ListVector
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-# Create your tests here.
-class matchFeaturesTestCase(TestCase):
-    # Test Case for the View: matchFeatures
+class MatchNamesTestCase(TestCase):
     def setUp(self):
         AttributeName.objects.create(canonical_name='gender', synonyms=[])
         AttributeName.objects.create(canonical_name='none', synonyms=[])
@@ -13,7 +22,7 @@ class matchFeaturesTestCase(TestCase):
 
     def test_matchFeatures_post(self):
         context = {'features': ["['sex', 'diagnosis', 'age']"], 'existing_features_match': ['gender', 'none', 'none']}
-        request = self.client.post('/matchFeatures/', context)
+        request = self.client.post('/matchNames/', context)
         self.assertEqual(request.status_code, 302)
         gender = AttributeName.objects.get(canonical_name='gender')
         diagnosis = AttributeName.objects.get(canonical_name='diagnosis')
@@ -27,7 +36,7 @@ class matchFeaturesTestCase(TestCase):
         session = self.client.session
         session['features1'] = ['gender', 'ulcer', 'age', 'diagnosis']
         session.save()
-        response = self.client.get('/matchFeatures/')
+        response = self.client.get('/matchNames/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['features'], ['age', 'diagnosis'])
         self.assertEqual(response.context['existing_features'][0], AttributeName.objects.all()[0])
@@ -36,12 +45,11 @@ class matchFeaturesTestCase(TestCase):
         session = self.client.session
         session['features1'] = ['gender', 'ulcer']
         session.save()
-        response = self.client.get('/matchFeatures/')
+        response = self.client.get('/matchNames/')
         self.assertEqual(response.status_code, 302)  # Redirect
 
 
-class matchTermsTestCase(TestCase):
-    # Test Case for the View: matchTerms
+class MatchTermsTestCase(TestCase):
     def setUp(self):
         gender = AttributeName.objects.create(canonical_name='gender', synonyms=['sex'])
         ulcer = AttributeName.objects.create(canonical_name='deep ulcer', synonyms=['ulcer'])
@@ -91,3 +99,61 @@ class matchTermsTestCase(TestCase):
         session.save()
         response = self.client.get('/matchTerms/')
         self.assertEqual(response.status_code, 302)
+
+
+class SyncValuesTestCase(TestCase):
+    def setUp(self):
+        self.disease = Disease.objects.create(name="Crohns", description="IBD")
+        experiment = Experiment.objects.create(gse_id='GSE1', gene_format='names', disease=self.disease)
+        sample1 = Sample.objects.create(experiment=experiment, sample_gsm='GSM1', sample_id='SAMPLE1', count=[1.0, 2.0])
+        sample2 = Sample.objects.create(experiment=experiment, sample_gsm='GSM2', sample_id='SAMPLE2', count=[2.0, 1.0])
+        AttributeName.objects.create(canonical_name='none', synonyms=[])
+        gender = AttributeName.objects.create(canonical_name='gender', synonyms=['sex'])
+        diagnosis = AttributeName.objects.create(canonical_name='diagnosis', synonyms=['disease status'])
+        male = AttributeValue.objects.create(name='gender', value='male', sample=sample1)
+        female = AttributeValue.objects.create(name='sex', value='female', sample=sample2)
+        cd = AttributeValue.objects.create(name='diagnosis', value='cd', sample=sample1)
+        uc = AttributeValue.objects.create(name='diagnosis', value='uc', sample=sample2)
+        self.client = Client()
+
+    def test_syncValues(self):
+        response = self.client.get('/syncValues/')
+        gender = AttributeName.objects.get(canonical_name='gender')
+        diagnosis = AttributeName.objects.get(canonical_name='diagnosis', synonyms=['disease status'])
+        male = AttributeValue.objects.get(name='gender', value='male')
+        female = AttributeValue.objects.get(name='sex', value='female')
+        cd = AttributeValue.objects.get(name='diagnosis', value='cd')
+        uc = AttributeValue.objects.get(name='diagnosis', value='uc')
+
+        self.assertEqual(male.attribute_name, gender)
+        self.assertEqual(female.attribute_name, gender)
+        self.assertEqual(uc.attribute_name, diagnosis)
+        self.assertEqual(cd.attribute_name, diagnosis)
+        self.assertEqual(response.status_code, 302)
+
+
+class IndexTestCase(TestCase):
+    def setUp(self):
+        self.client = Client()
+
+    def test_index(self):
+        request = self.client.post('/')
+        self.assertEqual(request.status_code, 200)
+
+
+class SearchTestCase(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.disease = Disease.objects.create(name="Crohns", description="IBD")
+
+    def test_search_post(self):
+        path = os.path.join(BASE_DIR, "diseases/test_helpers/gse85499_log_expression.csv")
+        file = open(path, 'r')
+        context = {'textfield': 'GSE85499', 'document': file, 'gene_format': 'names', 'disease': self.disease.id}
+        request = self.client.post('/search/', context)
+        self.assertEqual(request.status_code, 302)
+        self.assertEqual(Experiment.objects.get(id=1).gse_id, 'GSE85499')
+
+    def test_search_get(self):
+        response = self.client.get('/search/')
+        self.assertEqual(response.status_code, 200)

@@ -22,6 +22,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('diseases.urls')),
     path('', include('pca.urls')),
+    path('', include('supervisedLearning.urls')),
 ]
 
 if settings.DEBUG:

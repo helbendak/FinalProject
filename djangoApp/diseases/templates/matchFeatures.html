@@ -1,24 +1,29 @@
+{% extends "base.html" %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    {% block title %}
     <title>Match Features</title>
+    {% endblock title %}
 </head>
 <body>
+{% block content %}
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="features" value="{{ features }}">
         <ul>
             {% for feature in features %}
                 <li>{{ feature }}</li>
-                <select id="the-id" name="existing_features_match">
+                <select id="existing_features_match" name="existing_features_match">
                     {% for existing in existing_features %}
                         <option value="{{ existing }}">{{ existing }} - {{ existing.synonyms }}</option>
                     {% endfor %}
                 </select>
             {% endfor %}
         </ul>
-        <button type="submit">SUBMIT</button>
+        <button id="submit" type="submit">SUBMIT</button>
     </form>
+{% endblock content %}
 </body>
 </html>

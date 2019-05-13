@@ -19,7 +19,7 @@ from . import views
 urlpatterns = [
     path('', views.index, name='index'),
     path('search/', views.search, name='search'),
-    path('matchFeatures/', views.matchFeatures, name='matchFeatures'),
+    path('matchNames/', views.matchNames, name='matchNames'),
     path('matchTerms/', views.matchTerms, name='matchTerms'),
     path('syncValues/', views.syncValues, name='syncValues'),
 ]

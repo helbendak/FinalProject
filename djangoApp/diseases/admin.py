@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Disease, Experiment, ArrayData, AttributeValue, AttributeName, AttributeTerm, Sample, Gene
+from .models import Disease, Experiment, AttributeValue, AttributeName, AttributeTerm, Sample, Gene
 
 
 class DiseaseAdmin(admin.ModelAdmin):
@@ -30,7 +30,6 @@ class AttributeNameAdmin(admin.ModelAdmin):
 # Register your models here.
 admin.site.register(Disease, DiseaseAdmin)
 admin.site.register(Experiment)
-admin.site.register(ArrayData)
 admin.site.register(AttributeValue)
 admin.site.register(AttributeName, AttributeNameAdmin)
 admin.site.register(AttributeTerm)

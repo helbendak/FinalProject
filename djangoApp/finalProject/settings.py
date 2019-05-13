@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'diseases.apps.DiseasesConfig',
     'pca.apps.PcaConfig',
+    'supervisedLearning.apps.SupervisedlearningConfig',
 ]
 
 MIDDLEWARE = [

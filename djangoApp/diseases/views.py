@@ -4,7 +4,7 @@ from rpy2.robjects.vectors import StrVector, FactorVector
 from rpy2.robjects import r
 from django.core.files.storage import FileSystemStorage
 import os
-from .models import Sample, AttributeName, AttributeValue, AttributeTerm, Gene
+from .models import Sample, AttributeName, AttributeValue, AttributeTerm, Gene, Experiment, Disease
 import re
 import ast
 import csv
@@ -14,12 +14,18 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def index(request):
+    """
+    Renders the homepage
+    """
     return render(request, 'base.html')
 
 
 def search(request):
+    """
+    Handles the download of meta-data, parsing the gene expression values for the samples, and matching the meta-data to
+    the appropriate samples
+    """
     if request.method == 'POST':
-
         # Install R libraries
         packageNames = ('GEOquery', 'Biobase')
         utils = rpackages.importr('utils')
@@ -33,6 +39,9 @@ def search(request):
         # Extract POST data from HTML
         search_id = request.POST.get('textfield', None)
         uploaded_file = request.FILES['document']
+        gene_format = request.POST.get('gene_format', None)
+        disease = request.POST.get('disease', None)
+        experiment = Experiment.objects.get_or_create(gse_id=search_id, gene_format=gene_format, disease=Disease.objects.get(id=disease))
 
         # Get gene counts for each sample
         allCounts = []
@@ -51,7 +60,7 @@ def search(request):
                 if idx == 0:
                     rpkmFile_sampleIDs = row[1:]
                 else:
-                    Gene.objects.get_or_create(gene_name=row[0], gse_id=search_id, position=idx-1)
+                    Gene.objects.get_or_create(gene_name=row[0], experiment=experiment[0], position=idx-1)
         # request.session['countFile'] = "media/"+search_id+"_RPKM"
         request.session['gse'] = search_id
 
@@ -87,7 +96,7 @@ def search(request):
         for idx, sample_id in enumerate(rpkmFile_sampleIDs):
             sample_id = sample_id
             sample_gsm = sampleIDs_to_geoGSM[sample_id]
-            Sample.objects.get_or_create(gse_id=search_id, sample_id=sample_id, sample_gsm=sample_gsm, count=allCounts[idx])
+            Sample.objects.get_or_create(experiment=experiment[0], sample_id=sample_id, sample_gsm=sample_gsm, count=allCounts[idx])
 
         # Find which features we will be extracting from GEO
         geo_all_features = r.names(Biobase.pData(eList[0]))
@@ -118,12 +127,15 @@ def search(request):
         features = [x.lower() for x in features]
         request.session['features1'] = features
 
-        return redirect('/matchFeatures/')
+        return redirect('/matchNames/')
     else:
-        return render(request, 'searchGEO.html')
+        return render(request, 'searchGEO.html', {'diseases': Disease.objects.all()})
 
 
-def matchFeatures(request):
+def matchNames(request):
+    """
+    Handles matching the attribute names to each other in order to keep a synchronized ontology
+    """
     if request.method == 'POST':
         existing_features = request.POST.getlist('existing_features_match')
         new_features = request.POST.getlist('features')[0]
@@ -162,6 +174,9 @@ def matchFeatures(request):
 
 
 def matchTerms(request):
+    """
+    Handles matching the attribute values to each other in order to keep a synchronized ontology
+    """
     if request.method == 'POST':
         existing_terms = request.POST.getlist('existing_terms_match')
         new_terms = request.POST.getlist('term_list')[0]
@@ -216,6 +231,9 @@ def matchTerms(request):
 
 
 def syncValues(request):
+    """
+    Handles matching the attribute terms and values in the ontology to the attribute terms and values of the samples
+    """
     all_values = AttributeValue.objects.all()
     for attValue in all_values:
         name = attValue.name

@@ -13,13 +13,26 @@
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <h3>Enter GEO Accession Code</h3>
-        <input type="text" name="textfield">
-        </br>
+        <input id="gse_input" type="text" name="textfield">
+        <br>
         <h3>Upload Gene Count File</h3>
-        <input type="file" name="document">
-        </br>
-        </br>
-        <button type="submit">Submit</button>
+        <input id="log_expression_values" type="file" name="document">
+        <br>
+        <h3>Choose disease</h3>
+        <select id="disease" name="disease">
+            {% for d in diseases %}
+            <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+        </select>
+        <br>
+        <h3>Choose Gene Index format</h3>
+        <select id="gene_format_input" name="gene_format">
+            <option value="ensembl">Ensembl IDs</option>
+            <option value="names">Gene Names</option>
+        </select>
+        <br>
+        <br>
+        <button id="submit" type="submit">Submit</button>
     </form>
 {% endblock content %}
 </body>
