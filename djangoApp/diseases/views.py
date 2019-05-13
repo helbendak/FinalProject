@@ -53,18 +53,17 @@ def search(request):
 
         # Extract Genes and Sample IDs from count file
         fs = FileSystemStorage()
-        fs.save(search_id+"_RPKM", uploaded_file)
-        with open(os.path.join(BASE_DIR, "media/"+search_id+"_RPKM")) as csvDataFile:
+        fs.save(search_id+"_expression", uploaded_file)
+        with open(os.path.join(BASE_DIR, "media/"+search_id+"_expression")) as csvDataFile:
             csvReader = csv.reader(csvDataFile)
             for idx, row in enumerate(csvReader):
                 if idx == 0:
-                    rpkmFile_sampleIDs = row[1:]
+                    expressionFile_sampleIDs = row[1:]
                 else:
                     Gene.objects.get_or_create(gene_name=row[0], experiment=experiment[0], position=idx-1)
-        # request.session['countFile'] = "media/"+search_id+"_RPKM"
         request.session['gse'] = search_id
 
-        # Find which column in GEO corresponds to the sample IDs in the RPKM file
+        # Find which column in GEO corresponds to the sample IDs in the expression file
         eList = GEOquery.getGEO(search_id)  # GSE57945
         geo_all = Biobase.pData(eList[0])
         geo_all_list = []
@@ -76,12 +75,12 @@ def search(request):
                 geo_all_list.append(list(geo_all[i]))
 
         for geo_list in geo_all_list:
-            if all(elem in geo_list for elem in rpkmFile_sampleIDs):
+            if all(elem in geo_list for elem in expressionFile_sampleIDs):
                 ids_idx = geo_all_list.index(geo_list)
 
         geo_sampleIDs = Biobase.pData(eList[0])[ids_idx]
 
-        # Map sample IDs in RPKM file to GSM codes in GEO
+        # Map sample IDs in expression file to GSM codes in GEO
         geo_GSM_list = Biobase.pData(eList[0])[1]  # GSM Codes always stored in column 1
         sampleIDs_to_geoGSM = {}
         for i in range(len(geo_sampleIDs)):
@@ -93,7 +92,7 @@ def search(request):
             sampleIDs_to_geoGSM[sample_id] = sample_gsm
 
         # Create sample objects in database
-        for idx, sample_id in enumerate(rpkmFile_sampleIDs):
+        for idx, sample_id in enumerate(expressionFile_sampleIDs):
             sample_id = sample_id
             sample_gsm = sampleIDs_to_geoGSM[sample_id]
             Sample.objects.get_or_create(experiment=experiment[0], sample_id=sample_id, sample_gsm=sample_gsm, count=allCounts[idx])
@@ -117,7 +116,7 @@ def search(request):
             attribute_values = set(attribute_values)
             attribute_values = list(attribute_values)
             request.session[feature.lower()] = attribute_values
-            for sample_id in rpkmFile_sampleIDs:
+            for sample_id in expressionFile_sampleIDs:
                 geo_gsm = sampleIDs_to_geoGSM[sample_id]
                 sample_idx = geo_GSM_list.index(geo_gsm)
                 attribute_mapping = geo_attributeValue[sample_idx].lower()

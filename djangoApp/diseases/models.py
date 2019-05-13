@@ -69,13 +69,12 @@ class Sample(models.Model):
     """
     The Sample Model stores information about a particular sample
 
-    :param gse_id: TODO
+    :param experiment: The experiment this sample falls under
     :param sample_gsm: The unique GSM ID for the sample
     :param sample_id: The Sample ID
     :param count: Array of gene expression values
     """
     id = models.AutoField(primary_key=True)
-    # gse_id = models.CharField(max_length=15)  # TODO: Should be Foreign Key to Experiment
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE)
     sample_gsm = models.CharField(max_length=30)
     sample_id = models.CharField(max_length=30)
